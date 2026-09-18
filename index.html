@@ -9,8 +9,36 @@
 @media(max-width:900px){.shell{grid-template-columns:1fr}.side{display:none}.top{padding:0 18px}.content{padding:22px 16px}.stats{grid-template-columns:repeat(2,1fr)}.cards,.preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mobile-menu{display:inline-block}.heading{flex-direction:column}.client-banner{align-items:flex-start;flex-direction:column}}
 @media(max-width:560px){.cards,.preview-grid{grid-template-columns:1fr}.filters input{min-width:100%;width:100%}.client-row{align-items:flex-start;flex-wrap:wrap}.client-row .meta{min-width:65%}.top{height:64px}.content{padding-top:18px}.stats{gap:9px}.stat{padding:14px}.stat strong{font-size:24px}}
 </style>
-</head>
-<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body> <div id="loginScreen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;background:#f7f7f5;">
+  <div style="width:100%;max-width:420px;background:white;border:1px solid #e7e7e3;border-radius:24px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.08);">
+    
+    <div style="margin-bottom:28px;">
+      <div style="font-size:28px;font-weight:800;letter-spacing:-1px;">LP Aprova</div>
+      <div style="color:#777;margin-top:6px;">Área do cliente</div>
+    </div>
+
+    <h2 style="margin:0 0 8px;">Entrar</h2>
+    <p style="color:#777;margin:0 0 24px;">Acesse seus conteúdos para aprovação.</p>
+
+    <form id="loginForm">
+      <label style="display:block;font-size:13px;font-weight:700;margin-bottom:7px;">E-mail</label>
+      <input id="loginEmail" type="email" required
+        style="width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid #ddd;border-radius:12px;margin-bottom:16px;">
+
+      <label style="display:block;font-size:13px;font-weight:700;margin-bottom:7px;">Senha</label>
+      <input id="loginPassword" type="password" required
+        style="width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid #ddd;border-radius:12px;margin-bottom:18px;">
+
+      <button type="submit"
+        style="width:100%;border:0;border-radius:12px;padding:14px;background:#111;color:white;font-weight:700;cursor:pointer;">
+        Entrar
+      </button>
+
+      <div id="loginMessage" style="margin-top:14px;font-size:13px;color:#c33;"></div>
+    </form>
+  </div>
+</div>
 <div class="shell">
 <aside class="side">
  <div class="brand"><div class="mark">LP</div><div>LP Aprova<small>LP COMUNICAÇÃO</small></div></div>
@@ -29,7 +57,14 @@
 </div>
 <div class="modal-back" id="modalBack"><div class="modal" id="modal"></div></div><div class="toast" id="toast"></div>
 <script>
-const seedClients=[{id:1,name:"Florita | Moda Feminina",contact:"Contato da marca",initials:"FL",count:3},{id:2,name:"Hermano Soluções",contact:"Serviços e manutenção",initials:"HS",count:2},{id:3,name:"Dra. Fernanda Damião",contact:"Saúde",initials:"FD",count:2}];
+const SUPABASE_URL = "https://qajgffduznkmbjbnmnyx.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY = sb_publishable__2mc9is4TsMqh2uWyWCTwQ_IHUNeX6F;
+
+const sb = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);const seedClients=[{id:1,name:"Florita | Moda Feminina",contact:"Contato da marca",initials:"FL",count:3},{id:2,name:"Hermano Soluções",contact:"Serviços e manutenção",initials:"HS",count:2},{id:3,name:"Dra. Fernanda Damião",contact:"Saúde",initials:"FD",count:2}];
 const seedPosts=[
 {id:1,client:1,title:"Save the date — inauguração",type:"Post",status:"Aguardando aprovação",caption:"Uma nova forma de florescer está chegando. 🌷 Em outubro, esperamos você!",artTitle:"SAVE THE DATE",artSub:"Florita • Outubro",color:0},
 {id:2,client:1,title:"Conheça a Florita",type:"Carrossel · 4 páginas",status:"Aguardando aprovação",caption:"Seu próximo look favorito pode estar mais perto do que você imagina. Acompanhe as novidades!",artTitle:"SEU ESTILO,\\nSUA FLORITA",artSub:"Moda feminina",color:1},
@@ -42,7 +77,102 @@ const seedPosts=[
 let clients=JSON.parse(localStorage.getItem("lp_clients")||"null")||seedClients;
 let posts=JSON.parse(localStorage.getItem("lp_posts")||"null")||seedPosts;
 let view="dashboard",activeFilter="Todos",selectedClient=1;
-const save=()=>{localStorage.setItem("lp_clients",JSON.stringify(clients));localStorage.setItem("lp_posts",JSON.stringify(posts))};
+const save=async()=>{
+  await loadCloudData();
+}; async function loadCloudData(){
+  const { data: { user } } = await sb.auth.getUser();
+
+  if(!user){
+    return;
+  }
+
+  const { data: admin } = await sb
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if(admin){
+    window.lpRole = "admin";
+
+    const { data: cloudClients, error: clientsError } = await sb
+      .from("clients")
+      .select("*")
+      .order("id");
+
+    if(clientsError){
+      console.error(clientsError);
+      return;
+    }
+
+    const { data: cloudPosts, error: postsError } = await sb
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending:false });
+
+    if(postsError){
+      console.error(postsError);
+      return;
+    }
+
+    clients = cloudClients || [];
+    posts = (cloudPosts || []).map(p => ({
+      id:p.id,
+      client:p.client_id,
+      title:p.title,
+      type:p.type,
+      status:p.status,
+      caption:p.caption,
+      artTitle:p.art_title,
+      artSub:p.art_sub,
+      color:p.color,
+      feedback:p.feedback
+    }));
+
+    return;
+  }
+
+  const { data: relation, error: relationError } = await sb
+    .from("client_users")
+    .select("client_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if(relationError || !relation){
+    console.error(relationError || "Cliente não vinculado.");
+    return;
+  }
+
+  window.lpRole = "client";
+  window.lpClientId = relation.client_id;
+
+  const { data: cloudClients } = await sb
+    .from("clients")
+    .select("*")
+    .eq("id", relation.client_id);
+
+  const { data: cloudPosts } = await sb
+    .from("posts")
+    .select("*")
+    .eq("client_id", relation.client_id)
+    .order("created_at", { ascending:false });
+
+  clients = cloudClients || [];
+
+  posts = (cloudPosts || []).map(p => ({
+    id:p.id,
+    client:p.client_id,
+    title:p.title,
+    type:p.type,
+    status:p.status,
+    caption:p.caption,
+    artTitle:p.art_title,
+    artSub:p.art_sub,
+    color:p.color,
+    feedback:p.feedback
+  }));
+}
+
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const client=id=>clients.find(c=>c.id===Number(id))||clients[0];
 const tag=s=>`<span class="tag ${s==="Aprovado"?"ok":s==="Alteração solicitada"?"change":"wait"}">${esc(s)}</span>`;
@@ -74,5 +204,69 @@ function submitChange(id){let note=document.getElementById("feedback").value.tri
 function openClient(id){selectedClient=id;setView("client")}
 function searchPosts(){let q=document.getElementById("search").value.toLowerCase();document.getElementById("postCards").innerHTML=posts.filter(p=>(activeFilter==="Todos"||p.status===activeFilter)&&(p.title+" "+client(p.client).name).toLowerCase().includes(q)).map(p=>postCard(p)).join("")||'<div class="empty">Nenhum resultado.</div>'}
 render();
+ async function showLogin(){
+  document.getElementById("loginScreen").style.display = "flex";
+  const shell = document.querySelector(".shell");
+  if(shell) shell.style.display = "none";
+}
+
+async function showApp(){
+  document.getElementById("loginScreen").style.display = "none";
+  const shell = document.querySelector(".shell");
+  if(shell) shell.style.display = "flex";
+}
+
+document.getElementById("loginForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const message = document.getElementById("loginMessage");
+
+  message.textContent = "Entrando...";
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error){
+    message.textContent = "E-mail ou senha incorretos.";
+    console.error(error);
+    return;
+  }
+
+  await loadCloudData();
+  await showApp();
+
+  if(typeof render === "function"){
+    render();
+  }
+});
+
+async function startLP(){
+  const { data: { session } } = await sb.auth.getSession();
+
+  if(!session){
+    await showLogin();
+    return;
+  }
+
+  await loadCloudData();
+  await showApp();
+
+  if(typeof render === "function"){
+    render();
+  }
+}
+
+sb.auth.onAuthStateChange(async function(event, session){
+  if(event === "SIGNED_OUT"){
+    await showLogin();
+  }
+});
+
+startLP();
+
 </script>
 </body></html>
