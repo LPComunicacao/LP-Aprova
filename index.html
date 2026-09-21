@@ -172,7 +172,6 @@ const save=async()=>{
     feedback:p.feedback
   }));
 }
-
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const client=id=>clients.find(c=>c.id===Number(id))||clients[0];
 const tag=s=>`<span class="tag ${s==="Aprovado"?"ok":s==="Alteração solicitada"?"change":"wait"}">${esc(s)}</span>`;
@@ -249,7 +248,7 @@ function clientView(){
     </div>
   `;
 }
- 💜</h1><p>Confira os conteúdos preparados para sua marca e deixe seu retorno.</di/p><v><div class="field" style="margin:0;min-width:210px"><label style="color:#eee">Visualizar portal de</label><select onchange="selectedClient=Number(this.value);render()">${clients.map(x=>`<option value="${x.id}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div></div><div class="panel"><div class="panel-head"><div><h2>Seu calendário de conteúdos</h2><div class="muted">Aprove ou solicite ajustes em cada peça.</div></div><span class="tag">${list.filter(p=>p.status==="Aguardando aprovação").length} pendentes</span></div><div class="tabs">${["Todos","Aguardando aprovação","Aprovado","Alteração solicitada"].map(s=>`<button class="${activeFilter===s?"active":""}" onclick="activeFilter='${s}';render()">${s}</button>`).join("")}</div><div class="preview-grid">${list.filter(p=>activeFilter==="Todos"||p.status===activeFilter).map(p=>postCard(p,false)).join("")||'<div class="empty">Não há conteúdos nesta categoria.</div>'}</div></div><div class="muted">Demonstração: os botões atualizam apenas este navegador. O portal real terá links privados e dados separados por cliente.</div></div>`}
+ 
 function render(){document.getElementById("crumb").textContent={dashboard:"Visão geral",posts:"Conteúdos",clients:"Clientes",client:"Portal do cliente"}[view];document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===view));document.getElementById("app").innerHTML=({dashboard,posts:postsView,clients:clientsView,client:clientView}[view])()}
 function setView(v){view=v;activeFilter="Todos";render()}document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>setView(b.dataset.view));
 function toggleNav(){let s=document.querySelector(".side");s.style.display=s.style.display==="flex"?"none":"flex"}
