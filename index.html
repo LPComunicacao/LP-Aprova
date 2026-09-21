@@ -182,7 +182,73 @@ function postCard(p,admin=true){return `<article class="post-card">${art(p)}<div
 function dashboard(){return `<div class="heading"><div><h1>Bom dia, LP! 👋</h1><p>Acompanhe os conteúdos e as aprovações dos seus clientes.</p></div><button class="primary" onclick="newPost()">＋ Novo conteúdo</button></div>${stats()}<div class="panel"><div class="panel-head"><h2>Conteúdos recentes</h2><button class="soft" onclick="setView('posts')">Ver todos →</button></div><div class="cards">${posts.slice(0,3).map(p=>postCard(p)).join("")}</div></div><div class="panel"><div class="panel-head"><h2>Clientes</h2><button class="outline" onclick="setView('clients')">Gerenciar</button></div>${clientRows()}</div>`}
 function clientRows(){return `<div class="client-list">${clients.map(c=>`<div class="client-row"><div class="client-icon">${esc(c.initials||c.name.slice(0,2).toUpperCase())}</div><div class="meta"><strong>${esc(c.name)}</strong><div class="muted">${posts.filter(p=>p.client===c.id).length} conteúdos · ${esc(c.contact||"Cliente LP")}</div></div><span class="tag">${posts.filter(p=>p.client===c.id&&p.status==="Aguardando aprovação").length} aguardando</span><button class="outline" onclick="openClient(${c.id})">Abrir portal</button></div>`).join("")}</div>`}
 function postsView(){let list=posts.filter(p=>activeFilter==="Todos"||p.status===activeFilter);return `<div class="heading"><div><h1>Conteúdos</h1><p>Organize publicações e acompanhe o retorno dos clientes.</p></div><button class="primary" onclick="newPost()">＋ Novo conteúdo</button></div><div class="panel"><div class="panel-head"><h2>Biblioteca de conteúdos</h2><div class="filters"><select onchange="activeFilter=this.value;render()">${["Todos","Aguardando aprovação","Aprovado","Alteração solicitada"].map(s=>`<option ${s===activeFilter?"selected":""}>${s}</option>`).join("")}</select><input id="search" placeholder="Buscar conteúdo ou cliente…" oninput="searchPosts()"></div></div><div class="cards" id="postCards">${list.map(p=>postCard(p)).join("")||'<div class="empty">Nenhum conteúdo encontrado.</div>'}</div></div>`}
-function clientsView(){return `<div class="heading"><div><h1>Clientes</h1><p>Gerencie os clientes e abra o portal de aprovação de cada um.</p></div><button class="primary" onclick="newClient()">＋ Novo cliente</button></div><div class="panel"><div class="panel-head"><h2>Seus clientes</h2><span class="tag">${clients.length} cadastrados</span></div>${clientRows()}</div>`}
+function clientView(){
+  const isClient = window.lpRole === "client";
+  const clientId = isClient ? Number(window.lpClientId) : Number(selectedClient);
+  const c = client(clientId);
+
+  if(!c){
+    return `<div class="panel">
+      <h2>Portal não encontrado</h2>
+      <p>Não foi possível localizar os dados deste cliente.</p>
+    </div>`;
+  }
+
+  const list = posts.filter(p => Number(p.client) === Number(c.id));
+
+  const clientSelector = isClient ? "" : `
+    <div class="field" style="margin:0;min-width:210px">
+      <label style="color:#eee">Visualizar portal de</label>
+      <select onchange="selectedClient=Number(this.value);render()">
+        ${clients.map(x => `
+          <option value="${x.id}" ${Number(x.id)===Number(c.id)?"selected":""}>
+            ${esc(x.name)}
+          </option>
+        `).join("")}
+      </select>
+    </div>
+  `;
+
+  return `
+    <div class="client-preview">
+      <div class="client-banner">
+        <div>
+          <div style="font-size:11px;letter-spacing:.14em;margin-bottom:8px">
+            PORTAL DE APROVAÇÃO · LP COMUNICAÇÃO
+          </div>
+          <h1>Olá, ${esc(c.name)}! 💜</h1>
+          <p>Confira os conteúdos preparados para sua marca e deixe seu retorno.</p>
+        </div>
+        ${clientSelector}
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Seu calendário de conteúdos</h2>
+            <div class="muted">Aprove ou solicite ajustes em cada peça.</div>
+          </div>
+          <span class="tag">
+            ${list.filter(p=>p.status==="Aguardando aprovação").length} pendentes
+          </span>
+        </div>
+
+        <div class="tabs">
+          ${["Todos","Aguardando aprovação","Aprovado","Alteração solicitada"].map(s=>`
+            <button class="${activeFilter===s?"active":""}"
+              onclick="activeFilter='${s}';render()">${s}</button>
+          `).join("")}
+        </div>
+
+        <div class="preview-grid">
+          ${list.filter(p=>activeFilter==="Todos"||p.status===activeFilter)
+            .map(p=>postCard(p,false)).join("")
+            || '<div class="empty">Não há conteúdos nesta categoria.</div>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
 function clientView(){let c=client(selectedClient),list=posts.filter(p=>p.client===c.id);return `<div class="client-preview"><div class="client-banner"><div><div style="font-size:11px;letter-spacing:.14em;margin-bottom:8px">PORTAL DE APROVAÇÃO · LP COMUNICAÇÃO</div><h1>Olá, ${esc(c.name)}! 💜</h1><p>Confira os conteúdos preparados para sua marca e deixe seu retorno.</p></div><div class="field" style="margin:0;min-width:210px"><label style="color:#eee">Visualizar portal de</label><select onchange="selectedClient=Number(this.value);render()">${clients.map(x=>`<option value="${x.id}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div></div><div class="panel"><div class="panel-head"><div><h2>Seu calendário de conteúdos</h2><div class="muted">Aprove ou solicite ajustes em cada peça.</div></div><span class="tag">${list.filter(p=>p.status==="Aguardando aprovação").length} pendentes</span></div><div class="tabs">${["Todos","Aguardando aprovação","Aprovado","Alteração solicitada"].map(s=>`<button class="${activeFilter===s?"active":""}" onclick="activeFilter='${s}';render()">${s}</button>`).join("")}</div><div class="preview-grid">${list.filter(p=>activeFilter==="Todos"||p.status===activeFilter).map(p=>postCard(p,false)).join("")||'<div class="empty">Não há conteúdos nesta categoria.</div>'}</div></div><div class="muted">Demonstração: os botões atualizam apenas este navegador. O portal real terá links privados e dados separados por cliente.</div></div>`}
 function render(){document.getElementById("crumb").textContent={dashboard:"Visão geral",posts:"Conteúdos",clients:"Clientes",client:"Portal do cliente"}[view];document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===view));document.getElementById("app").innerHTML=({dashboard,posts:postsView,clients:clientsView,client:clientView}[view])()}
 function setView(v){view=v;activeFilter="Todos";render()}document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>setView(b.dataset.view));
